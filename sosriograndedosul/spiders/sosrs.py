@@ -12,9 +12,7 @@ class SosrsSpider(scrapy.Spider):
         yield scrapy.Request(
             url=f"{self.domain}shelters?orderBy=updatedAt&order=desc&search=search%3D%26priority%3D&page={page}&perPage=50",
             callback=self.parse_request_api,
-            meta={
-                "page": page
-            }
+            meta={"page": page},
         )
 
     def parse_request_api(self, response):
@@ -25,9 +23,5 @@ class SosrsSpider(scrapy.Spider):
         for shelter in shelters:
             yield shelter
 
-        """
         if shelters:
-            yield from self.request_api(
-                response.meta["page"] + 1
-            )
-        """
+            yield from self.request_api(response.meta["page"] + 1)
