@@ -18,11 +18,10 @@ class SosriograndedosulPipeline(GSpreadMethods):
     shelters_rows = []
     shelters_supplies_rows = []
 
-    def open_spider(self, spider):
+    def close_spider(self, spider):
         self.shelters.batch_clear(["A2:Z5000"])
         self.shelters_supplies.batch_clear(["A2:Z5000"])
 
-    def close_spider(self, spider):
         self.shelters.batch_update(
             [{"range": "A2:Z5000", "values": self.shelters_rows}]
         )
