@@ -1,6 +1,5 @@
-import json
 import scrapy
-
+import json
 
 class AjudeRSSpider(scrapy.Spider):
     name = "ajuders"
@@ -16,20 +15,39 @@ class AjudeRSSpider(scrapy.Spider):
         "Higiene e Produtos de Limpeza",
         "Roupas ou cobertas",
         "Ajuda de Voluntários",
-        "Casa",
-        "Mesa e Banho",
+        "Casa, Mesa e Banho",
+        None
     ]
     array_situation = [
         "Precisando de Ajuda",
         "Indeterminado",
+        None
+    ]
+    array_characteristics = [
+        "Sem Água",
+        "Sem Eletricidade",
+        "Sem Comida",
+        "Ferido",
+        "Mobilidade Limitada",
+        "Grávida",
+        "Necessidades Especiais",
+        "Idoso",
+        "Criança",
+        "Recém-Nascido",
+        "Sem Medicamentos",
+        "Animais",
+        "Sem Bateria De Celular",
+        None
     ]
 
     def start_requests(self):
         for status in self.array_status:
             for situation in self.array_situation:
-                yield from self.request_ajuders(status, situation)
+                for characteristic in self.array_characteristics:
+                    filters = self.parse_filters(status, situation, characteristic)
+                    yield from self.request_ajuders(filters, situation)
 
-    def request_ajuders(self, status, situation):
+    def request_ajuders(self, filters, situation):
         yield scrapy.Request(
             method="POST",
             url="https://ilxunwwlgr-1.algolianet.com/1/indexes/LiveReports/query?x-algolia-agent=Algolia%20for%20JavaScript%20(4.22.1)%3B%20Browser",
@@ -40,7 +58,7 @@ class AjudeRSSpider(scrapy.Spider):
                     "hitsPerPage": 999,
                     "attributesToRetrieve": ["uniqueid"],
                     "sortFacetValuesBy": "count",
-                    "filters": f'(Status:"{status}") AND (StatusSituation:"{situation}") AND (ImageT:"true" OR ImageT:"false") AND (EnderecoT:"true" OR EnderecoT:"false") AND (TelefoneT:"true" OR TelefoneT:"false")',
+                    "filters": filters,
                     "optionalFilters": "",
                 }
             ),
@@ -52,6 +70,20 @@ class AjudeRSSpider(scrapy.Spider):
             meta={"situation": situation},
         )
 
+    
+    def parse_filters(self, status, situation, characteristic):
+        filter = f'(ImageT:"true" OR ImageT:"false") AND (EnderecoT:"true" OR EnderecoT:"false") AND (TelefoneT:"true" OR TelefoneT:"false")'
+
+        if status:
+            filter += f' AND (Status:"{status}")'
+        if situation:
+            filter += f' AND (StatusSituation:"{situation}")'
+        if characteristic:
+            filter += f' AND (Characteristics:"{characteristic}")'
+
+        return filter
+    
+        
     def parse_ajuders(self, response):
         data = response.json()
 
