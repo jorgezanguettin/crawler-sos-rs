@@ -17,7 +17,6 @@ class SosrsSpider(scrapy.Spider):
 
     def parse_request_api(self, response):
         data = response.json()
-
         shelters = data["data"]["results"]
 
         for shelter in shelters:
