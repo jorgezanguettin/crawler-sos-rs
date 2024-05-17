@@ -1,7 +1,6 @@
 import os
 import re
 import json
-import time
 import gspread
 import requests
 from requests.adapters import HTTPAdapter, Retry
@@ -11,7 +10,8 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 s = requests.Session()
 retries = Retry(total=5, backoff_factor=1)
-s.mount('https://', HTTPAdapter(max_retries=retries))
+s.mount("https://", HTTPAdapter(max_retries=retries))
+
 
 class GSpreadMethods:
     def __init__(self) -> None:
@@ -19,31 +19,52 @@ class GSpreadMethods:
 
         spreadsheet_id = "1xRt5dn4d4L-aBBNdKGvGjN3u0q9N0QDl65Y3AzJLaVE"
         spreadsheet = gc.open_by_key(spreadsheet_id)
-        self.shelters = spreadsheet.worksheet("Shelters")
-        self.shelters_supplies = spreadsheet.worksheet("Shelters Supplies")
+        self.shelters = spreadsheet.worksheet("Abrigos-SOSRS")
+        self.shelters_supplies = spreadsheet.worksheet("Suprimentos-SOSRS")
+        self.helpeds = spreadsheet.worksheet("Ocorrencias-AJUDERS")
 
 
 class SosriograndedosulPipeline(GSpreadMethods):
+    functions = {}
+
     shelters_rows = []
     shelters_supplies_rows = []
-    for_to = []
+    helpeds_rows = []
 
     coords = json.loads(open(f"{ROOT_DIR}/coords.json", "r", encoding="utf-8").read())
 
+    def open_spider(self, spider):
+        self.functions = {
+            "sosrs": self.process_sosrs_item,
+            "ajuders": self.process_ajuders_item,
+        }
+
     def close_spider(self, spider):
-        self.shelters.batch_clear(["A2:Z5000"])
-        self.shelters_supplies.batch_clear(["A2:Z5000"])
+        if spider.name == "sosrs":
+            self.shelters.batch_clear(["A2:Z5000"])
+            self.shelters_supplies.batch_clear(["A2:Z5000"])
 
-        self.shelters.batch_update(
-            [{"range": "A2:Z5000", "values": self.shelters_rows}]
-        )
-        self.shelters_supplies.batch_update(
-            [{"range": "A2:Z5000", "values": self.shelters_supplies_rows}]
-        )
-
-        print(self.for_to)
+            self.shelters.batch_update(
+                [{"range": "A2:Z5000", "values": self.shelters_rows}]
+            )
+            self.shelters_supplies.batch_update(
+                [{"range": "A2:Z5000", "values": self.shelters_supplies_rows}]
+            )
+        elif spider.name == "ajuders":
+            self.helpeds.batch_clear(["A2:Z5000"])
+            self.helpeds.batch_update(
+                [{"range": "A2:Z5000", "values": self.helpeds_rows}]
+            )
 
     def process_item(self, item, spider):
+        return self.functions[spider.name](item)
+
+    def process_ajuders_item(self, item):
+        self.helpeds_rows.append(self.process_dict_rows(item, "helpeds"))
+
+        return item
+
+    def process_sosrs_item(self, item):
         shelter_supplies_raw = item["shelterSupplies"].copy()
         del item["shelterSupplies"]
 
@@ -116,7 +137,6 @@ class SosriograndedosulPipeline(GSpreadMethods):
         if postal_code.replace("-", "") in self.coords:
             return self.coords[postal_code.replace("-", "")]
 
-        print(postal_code)
         response = s.get(base_url, params=params, timeout=60)
 
         if response.status_code == 200:
