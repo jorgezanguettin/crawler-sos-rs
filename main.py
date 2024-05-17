@@ -1,5 +1,6 @@
 import functions_framework
 from sosriograndedosul.spiders.sosrs import SosrsSpider
+from sosriograndedosul.spiders.ajuders import AjudeRSSpider
 from scrapy.utils.project import get_project_settings
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
@@ -11,6 +12,7 @@ def lambda_handler(request):
 
     process = CrawlerProcess(settings)
     process.crawl(SosrsSpider)
+    process.crawl(AjudeRSSpider)
     process.start()
 
     return "Trigger Success"
