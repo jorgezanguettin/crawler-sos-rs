@@ -1,8 +1,17 @@
 import os
+import re
+import json
+import time
 import gspread
+import requests
+from requests.adapters import HTTPAdapter, Retry
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
+s = requests.Session()
+retries = Retry(total=5, backoff_factor=1)
+s.mount('https://', HTTPAdapter(max_retries=retries))
 
 class GSpreadMethods:
     def __init__(self) -> None:
@@ -17,6 +26,9 @@ class GSpreadMethods:
 class SosriograndedosulPipeline(GSpreadMethods):
     shelters_rows = []
     shelters_supplies_rows = []
+    for_to = []
+
+    coords = json.loads(open(f"{ROOT_DIR}/coords.json", "r", encoding="utf-8").read())
 
     def close_spider(self, spider):
         self.shelters.batch_clear(["A2:Z5000"])
@@ -29,6 +41,8 @@ class SosriograndedosulPipeline(GSpreadMethods):
             [{"range": "A2:Z5000", "values": self.shelters_supplies_rows}]
         )
 
+        print(self.for_to)
+
     def process_item(self, item, spider):
         shelter_supplies_raw = item["shelterSupplies"].copy()
         del item["shelterSupplies"]
@@ -39,16 +53,78 @@ class SosriograndedosulPipeline(GSpreadMethods):
                 shelter_supplies[f"supply_{k}"] = v
             del shelter_supplies["supply"]
 
-            self.shelters_supplies_rows.append(self.process_dict_rows(shelter_supplies))
+            self.shelters_supplies_rows.append(
+                self.process_dict_rows(shelter_supplies, "shelterSupplies")
+            )
 
         self.shelters_rows.append(self.process_dict_rows(item))
 
         return item
 
-    def process_dict_rows(self, item):
+    def process_dict_rows(self, item, item_type="shelter"):
         row = []
+
+        if item_type == "shelter":
+            conditions = (not item["latitude"], not item["longitude"])
+            if all(conditions):
+                item = self.get_coords_by_postalcode(item)
+            else:
+                item["zipCode"] = (
+                    item["zipCode"].replace("-", "") if item["zipCode"] else ""
+                )
 
         for k, v in sorted(item.items()):
             row.append(v)
 
         return row
+
+    def get_coords_by_postalcode(self, item):
+        if not item["zipCode"]:
+            zipcode_raw = "0"
+        else:
+            zipcode_raw = item["zipCode"].replace("'", "").strip()
+
+        if int(zipcode_raw.replace("-", "")) == 0:
+            zipcode = re.compile(r"[0-9]{5}[-]{0,1}[0-9]{3}").findall(item["address"])
+        else:
+            zipcode = item["zipCode"]
+
+        if zipcode and isinstance(zipcode, list):
+            zipcode = zipcode[0]
+
+        if zipcode:
+            coords_maps = self.get_coordinates(zipcode)
+
+            item["zipCode"] = zipcode.replace("-", "")
+
+            if coords_maps:
+                item["latitude"] = str(coords_maps["latitude"]).replace(".", ",")
+                item["longitude"] = str(coords_maps["longitude"]).replace(".", ",")
+        else:
+            item["zipCode"] = ""
+
+        return item
+
+    def get_coordinates(self, postal_code):
+        base_url = "https://maps.googleapis.com/maps/api/geocode/json"
+
+        params = {
+            "address": postal_code,
+            "key": os.getenv("GMAPS_APIKEY"),
+        }
+
+        if postal_code.replace("-", "") in self.coords:
+            return self.coords[postal_code.replace("-", "")]
+
+        print(postal_code)
+        response = s.get(base_url, params=params, timeout=60)
+
+        if response.status_code == 200:
+            data = response.json()
+            if len(data["results"]) > 0:
+                location = data["results"][0]["geometry"]["location"]
+                latitude = location["lat"]
+                longitude = location["lng"]
+
+                return {"latitude": latitude, "longitude": longitude}
+        return {"latitude": "", "longitude": ""}
