@@ -15,7 +15,6 @@ s.mount("https://", HTTPAdapter(max_retries=retries))
 
 class GSpreadMethods:
     def __init__(self) -> None:
-        pass
         gc = gspread.service_account(filename=f"{ROOT_DIR}/api_credentials.json")
 
         spreadsheet_id = "1xRt5dn4d4L-aBBNdKGvGjN3u0q9N0QDl65Y3AzJLaVE"
