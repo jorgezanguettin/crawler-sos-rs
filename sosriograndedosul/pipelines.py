@@ -51,6 +51,7 @@ class SosriograndedosulPipeline(GSpreadMethods):
                 [{"range": "A2:Z5000", "values": self.shelters_supplies_rows}]
             )
         elif spider.name == "ajuders":
+            self.dedup_helpeds_items()
             self.helpeds.batch_clear(["A2:Z5000"])
             self.helpeds.batch_update(
                 [{"range": "A2:Z5000", "values": self.helpeds_rows}]
@@ -148,3 +149,15 @@ class SosriograndedosulPipeline(GSpreadMethods):
 
                 return {"latitude": latitude, "longitude": longitude}
         return {"latitude": "", "longitude": ""}
+
+    def dedup_helpeds_items(self):
+        itemList = self.helpeds_rows
+
+        dupList = []
+        i = 0
+        while i < len(itemList):
+            if itemList[i][6] not in dupList:
+                dupList.append(itemList[i][6])
+                i += 1
+            else:
+                itemList.pop(i)
