@@ -154,8 +154,11 @@ class SosriograndedosulPipeline(GSpreadMethods):
     def dedup_helpeds_items(self):
         itemList = self.helpeds_rows
 
-        for i in range(len(itemList)): # O(n2)
-            for j in range(len(itemList)):
-                if i == j: continue
-                if itemList[i][6] == itemList[j][6]:
-                    print(f"DupData: {itemList[i][10]}  |  {itemList[j][10]}")
+        dupList = []
+        i = 0
+        while i < len(itemList):
+            if itemList[i][6] not in dupList:
+                dupList.append(itemList[i][6])
+                i += 1
+            else:
+                itemList.pop(i)
