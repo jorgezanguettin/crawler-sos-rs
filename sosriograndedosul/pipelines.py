@@ -1,7 +1,7 @@
 import os
 import re
 import json
-# import gspread
+import gspread
 import requests
 from requests.adapters import HTTPAdapter, Retry
 
@@ -16,13 +16,13 @@ s.mount("https://", HTTPAdapter(max_retries=retries))
 class GSpreadMethods:
     def __init__(self) -> None:
         pass
-        # gc = gspread.service_account(filename=f"{ROOT_DIR}/api_credentials.json")
+        gc = gspread.service_account(filename=f"{ROOT_DIR}/api_credentials.json")
 
-        # spreadsheet_id = "1xRt5dn4d4L-aBBNdKGvGjN3u0q9N0QDl65Y3AzJLaVE"
-        # spreadsheet = gc.open_by_key(spreadsheet_id)
-        # self.shelters = spreadsheet.worksheet("Abrigos-SOSRS")
-        # self.shelters_supplies = spreadsheet.worksheet("Suprimentos-SOSRS")
-        # self.helpeds = spreadsheet.worksheet("Ocorrencias-AJUDERS")
+        spreadsheet_id = "1xRt5dn4d4L-aBBNdKGvGjN3u0q9N0QDl65Y3AzJLaVE"
+        spreadsheet = gc.open_by_key(spreadsheet_id)
+        self.shelters = spreadsheet.worksheet("Abrigos-SOSRS")
+        self.shelters_supplies = spreadsheet.worksheet("Suprimentos-SOSRS")
+        self.helpeds = spreadsheet.worksheet("Ocorrencias-AJUDERS")
 
 
 class SosriograndedosulPipeline(GSpreadMethods):
